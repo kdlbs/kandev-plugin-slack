@@ -99,6 +99,25 @@ function makeStatusCard(host) {
     return h("div", { style: { fontSize: "0.8125rem", color: "var(--muted-foreground)" } }, help);
   }
 
+  // Existing installations need this guidance even when Socket Mode is healthy.
+  function NotificationHint() {
+    return h(
+      "div",
+      { style: { display: "flex", flexDirection: "column", gap: "0.375rem", fontSize: "0.8125rem" } },
+      h("div", { style: { fontWeight: 500 } }, "Task notifications"),
+      h(
+        "div",
+        { style: { color: "var(--muted-foreground)" } },
+        "Task agents can send direct messages through your existing bot token. Browser-session fallback does not support task notifications.",
+      ),
+      h(
+        "div",
+        { style: { color: "var(--muted-foreground)" } },
+        "In the Slack app, open OAuth & Permissions and add the bot scopes chat:write and im:write. After adding a scope, reinstall the Slack app into your workspace to grant it.",
+      ),
+    );
+  }
+
   // Setup is the one thing the schema-driven form cannot explain: where the
   // two tokens come from. Shown only until the app path is working.
   function SetupHint({ data }) {
@@ -195,7 +214,7 @@ function makeStatusCard(host) {
             if (key === "test") {
               setResult(
                 body.ok
-                  ? { ok: true, text: "Connected as " + describeIdentity(body) }
+                  ? { ok: true, text: "Authenticated as " + describeIdentity(body) + ". This test does not check DM delivery." }
                   : { ok: false, text: body.error || `HTTP ${res.status}` },
               );
             } else {
@@ -220,7 +239,7 @@ function makeStatusCard(host) {
         h(
           Button,
           { variant: "outline", size: "sm", disabled: busy !== null, onClick: () => run("test") },
-          busy === "test" ? "Testing…" : "Test connection",
+          busy === "test" ? "Testing…" : "Test authentication",
         ),
         realtime
           ? null
@@ -229,6 +248,11 @@ function makeStatusCard(host) {
               { variant: "outline", size: "sm", disabled: busy !== null, onClick: () => run("scan") },
               busy === "scan" ? "Scanning…" : "Scan now",
             ),
+      ),
+      h(
+        "div",
+        { style: { fontSize: "0.8125rem", color: "var(--muted-foreground)" } },
+        "Test authentication checks saved credentials only. It does not check DM permissions or send a message.",
       ),
       result
         ? h(
@@ -268,6 +292,7 @@ function makeStatusCard(host) {
         h(MetaRow, { data }),
         h(ScopeHint, { data }),
         h(SetupHint, { data }),
+        h(NotificationHint),
         h(Timestamps, { data }),
         h(Actions, { reload, realtime: Boolean(data && data.realtime) }),
         h(Activity, { data }),

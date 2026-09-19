@@ -98,7 +98,7 @@ config_schema:
       type: string
       secret: true
       title: "Bot token"
-      description: "xoxb- Bot User OAuth Token from OAuth & Permissions, after installing the app. This is the identity replies come from."
+      description: "xoxb- Bot User OAuth Token from OAuth & Permissions. Used for triage replies and task notifications. Direct messages require the chat:write and im:write bot scopes. After adding a scope, reinstall the Slack app into your workspace to grant it."
     utility_agent:
       type: string
       format: utility-agent
@@ -113,7 +113,7 @@ config_schema:
       type: string
       secret: true
       title: "Fallback: browser session token"
-      description: "Only if your workspace forbids app installs. The xoxc- token from a logged-in Slack tab. Unofficial and unsupported by Slack; polls instead of receiving events. Leave empty when using a Slack app."
+      description: "The xoxc- token from a logged-in Slack tab, for workspaces that forbid app installs. This unofficial fallback polls for inbound triage only. It does not support task notifications. Leave empty when using a Slack app."
     session_cookie:
       type: string
       secret: true

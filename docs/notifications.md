@@ -23,6 +23,10 @@ The tool needs no app token, cookie, user token, or agent credential.
 Inbound triage still uses its existing configuration and Socket Mode or browser fallback.
 Browser-session credentials alone cannot send tool notifications.
 
+The Slack settings card shows these scope requirements for new and existing installations.
+The **Test authentication** button checks saved credentials only.
+It does not check DM permissions or send a message. Successful authentication does not prove DM delivery.
+
 SSH executors use the normal task MCP connection to the host.
 The managed plugin performs Slack requests on the host.
 The bot token stays inside the plugin process and the host vault.
