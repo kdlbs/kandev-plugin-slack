@@ -1,7 +1,7 @@
 id: "kandev-plugin-slack"
 api_version: 1
 min_kandev_version: "0.88.0"
-version: "0.1.1"
+version: "0.2.0"
 display_name: "Slack"
 description: "Turn Slack conversations into Kandev tasks. Mention @Kandev or run /kandev and a utility agent triages the thread into the right workspace, workflow and column, then replies in-thread."
 author: "kandev"

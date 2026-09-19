@@ -1,7 +1,7 @@
 .PHONY: build run test fmt vet package package-host verify-package verify-package-host clean
 
 BIN := bin/kandev-plugin-slack
-VERSION := 0.1.1
+VERSION := 0.2.0
 STAGE := .build/stage
 PKG_OUT := kandev-plugin-slack-$(VERSION).tar.gz
 KANDEV_BACKEND := ../kandev/apps/backend

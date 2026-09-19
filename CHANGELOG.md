@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0] - 2026-09-19
+
+### Changed
+
+- fix: clarify Slack notification setup in settings (07582bd)
+- feat: add task-aware Slack direct message tool (1ef89ac)
+
+
 ## [0.1.1] - 2026-08-21
 
 ### Changed
