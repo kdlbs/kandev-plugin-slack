@@ -101,6 +101,13 @@ lose real-time events.
 | Fallback: session token / `d` cookie | Secret. Only for workspaces that forbid apps. |
 | Fallback: command prefix / channels / poll interval | Fallback only; ignored by the app path. |
 
+## Task notifications
+
+Task and automation agents can call `notify_user` to send one Slack DM through
+the existing bot. The tool requires Kandev 0.88.0 and the additional `im:write`
+bot scope. It stores notification keys across restarts and upgrades.
+See [Task notifications](docs/notifications.md) for arguments, results, and retry limits.
+
 ## How triage works
 
 Kandev's `InvokeUtilityAgent` is a one-shot completion with no tool loop, so
@@ -129,7 +136,7 @@ which repositories each workspace has.
 ## Developing against the SDK
 
 `pkg/pluginsdk` is not published as a standalone module yet, so `go.mod`
-resolves it from a sibling checkout of the Kandev monorepo:
+resolves it from a sibling checkout of the Kandev monorepo at **v0.88.0**:
 
 ```
 ~/kandev-plugins/

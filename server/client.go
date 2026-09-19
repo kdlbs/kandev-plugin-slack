@@ -73,6 +73,7 @@ type authResult struct {
 type apiError struct {
 	StatusCode int
 	Message    string
+	RetryAfter int
 }
 
 func (e *apiError) Error() string {
@@ -138,6 +139,10 @@ func (c *client) post(ctx context.Context, method string, params url.Values, out
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+		return &apiError{StatusCode: resp.StatusCode, Message: "ratelimited", RetryAfter: max(0, retryAfter)}
+	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return err

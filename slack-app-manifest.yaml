@@ -40,6 +40,8 @@ oauth_config:
       - groups:history
       # Post the triage reply.
       - chat:write
+      # Open a direct message with one notification recipient.
+      - im:write
       # Add the :eyes: acknowledgement while triage runs.
       - reactions:write
       # Serve /kandev.

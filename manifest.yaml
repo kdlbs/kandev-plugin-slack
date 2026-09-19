@@ -1,5 +1,6 @@
 id: "kandev-plugin-slack"
 api_version: 1
+min_kandev_version: "0.88.0"
 version: "0.1.1"
 display_name: "Slack"
 description: "Turn Slack conversations into Kandev tasks. Mention @Kandev or run /kandev and a utility agent triages the thread into the right workspace, workflow and column, then replies in-thread."
@@ -30,6 +31,49 @@ capabilities:
   # picks an existing workspace/workflow/column rather than inventing one.
   api_read: ["workspaces", "workflows", "repositories"]
   api_write: ["tasks"]
+
+agent_tools:
+  - name: notify_user
+    description: "Send one plain-text Slack DM. Use a stable key per notification event. Repeats return the stored outcome. Never retry an uncertain outcome with a new key. The caller owns user mapping and task links."
+    surfaces: [kanban-task, office-task]
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [recipient, message, idempotency_key]
+      properties:
+        recipient:
+          type: string
+          pattern: '^[UW][A-Z0-9]{8,31}$'
+          description: "One mapped Slack user ID; channel IDs and user lists are forbidden."
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: "Plain text, at most 4000 UTF-8 bytes. Include the card URL. No mentions or angle brackets."
+        idempotency_key:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'
+          description: "Stable notification event key, scoped by the host workspace and recipient."
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [recipient, status, code, detail, duplicate]
+      properties:
+        recipient: {type: string}
+        status:
+          type: string
+          enum: [delivered, failed, uncertain, rejected]
+        code: {type: string}
+        detail: {type: string}
+        duplicate: {type: boolean}
+        channel: {type: string}
+        message_ts: {type: string}
+        retry_after_seconds: {type: integer, minimum: 0}
+    annotations:
+      read_only_hint: false
+      destructive_hint: false
+      idempotent_hint: true
+      open_world_hint: true
 
 webhooks:
   - key: "status"
