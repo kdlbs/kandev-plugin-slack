@@ -35,6 +35,7 @@ package:
 	cp manifest.yaml $(STAGE)/manifest.yaml
 	cp -r assets $(STAGE)/assets
 	cp README.md $(STAGE)/README.md
+	cp -r docs $(STAGE)/docs
 	cp slack-app-manifest.yaml $(STAGE)/slack-app-manifest.yaml
 	cp ui/bundle.js $(STAGE)/ui/bundle.js
 	GOOS=linux   GOARCH=amd64 go build -o $(STAGE)/server/plugin-linux-amd64       ./server
@@ -53,6 +54,7 @@ package-host:
 	cp manifest.yaml $(STAGE)/manifest.yaml
 	cp -r assets $(STAGE)/assets
 	cp README.md $(STAGE)/README.md
+	cp -r docs $(STAGE)/docs
 	cp slack-app-manifest.yaml $(STAGE)/slack-app-manifest.yaml
 	cp ui/bundle.js $(STAGE)/ui/bundle.js
 	go build -o $(STAGE)/server/plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE) ./server
@@ -73,6 +75,7 @@ grep -Fx 'icon: "assets/icon.svg"' "$$VERIFY_DIR/manifest.yaml" >/dev/null; \
 test -f "$$VERIFY_DIR/assets/icon.svg"; \
 test -f "$$VERIFY_DIR/assets/NOTICE.md"; \
 test -f "$$VERIFY_DIR/README.md"; \
+test -f "$$VERIFY_DIR/docs/notifications.md"; \
 test -f "$$VERIFY_DIR/slack-app-manifest.yaml"; \
 test -f "$$VERIFY_DIR/ui/bundle.js"; \
 test -f "$$VERIFY_DIR/checksums.txt"; \

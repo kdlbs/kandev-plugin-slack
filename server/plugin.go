@@ -20,6 +20,10 @@ type slackPlugin struct {
 	supervisor *supervisor
 
 	startOnce sync.Once
+	// A single managed process owns delivery. The channel makes waiting for
+	// its state transaction cancellable under the host's 30-second deadline.
+	notifyOnce sync.Once
+	notifyGate chan struct{}
 	// runCtx bounds the polling loop. Kandev owns the subprocess lifecycle
 	// and kills it on disable/uninstall, so cancellation here is only needed
 	// for tests and an orderly shutdown.
