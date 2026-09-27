@@ -1,34 +1,61 @@
-.PHONY: build run test fmt vet package package-host verify-package verify-package-host clean
+.PHONY: build run test test-go test-go-minimum-host test-package-verifier \
+	test-release-version fmt \
+	check-format check-sdk-pin vet package package-host verify-package \
+	vet-minimum-host verify-package-host package-file clean
 
 BIN := bin/kandev-plugin-slack
 VERSION := 0.2.0
 STAGE := .build/stage
-PKG_OUT := kandev-plugin-slack-$(VERSION).tar.gz
-KANDEV_BACKEND := ../kandev/apps/backend
+PKG_OUT := $(notdir $(BIN))-$(VERSION).tar.gz
 
-## Build the plugin binary for the host platform. Development use only —
-## the installed-plugin path always goes through package/package-host.
+# Keep this checkout beside the plugin. go.mod uses the same ../kandev path.
+KANDEV_BACKEND ?= ../kandev/apps/backend
+
+## Build the plugin binary for the host platform. Installed plugins use a package.
 build:
 	mkdir -p bin
 	go build -o $(BIN) ./server
 
-## Build + run. Mainly a smoke check: kandev normally spawns this binary
-## itself over the go-plugin handshake, so a bare run just blocks.
+## Build and run the plugin. A Kandev host normally starts it over go-plugin.
 run: build
 	./$(BIN)
 
-test:
+test: test-go test-package-verifier test-release-version
+
+test-go:
 	go test ./server
 
+test-go-minimum-host:
+	go test -tags=kandev_min_host ./server
+
+test-package-verifier:
+	sh scripts/test-verify-package.sh
+
+test-release-version:
+	sh scripts/test-verify-release-version.sh
+
 fmt:
-	gofmt -l .
+	gofmt -w ./server
+
+check-format:
+	@test -z "$$(gofmt -l ./server)" || { echo "gofmt needed:"; gofmt -l ./server; exit 1; }
+
+check-sdk-pin:
+	@set -eu; \
+		expected="$$(tr -d '\n' < .kandev-sdk-ref)"; \
+		printf '%s\n' "SDK pin: $$expected"; \
+		case "$$expected" in *[!0-9a-f]*|'') echo "invalid .kandev-sdk-ref" >&2; exit 1;; esac; \
+		test "$${#expected}" -eq 40 || { echo "SDK pin must contain 40 hex characters" >&2; exit 1; }; \
+		actual="$$(git -C ../kandev rev-parse HEAD)"; \
+		test "$$actual" = "$$expected" || { echo "Kandev checkout $$actual differs from SDK pin $$expected" >&2; exit 1; }
 
 vet:
-	go vet ./server
+	go vet ./server/...
 
-## Cross-compile every platform declared in manifest.yaml's
-## runtime.executables, stage manifest.yaml + assets/ + ui/ alongside them,
-## and pack the tree with Kandev's cmd/plugin-pack from the sibling backend.
+vet-minimum-host:
+	go vet -tags=kandev_min_host ./server/...
+
+## Build every platform declared in manifest.yaml and pack its runtime files.
 package:
 	rm -rf $(STAGE)
 	mkdir -p $(STAGE)/server $(STAGE)/ui
@@ -43,11 +70,11 @@ package:
 	GOOS=darwin  GOARCH=amd64 go build -o $(STAGE)/server/plugin-darwin-amd64      ./server
 	GOOS=darwin  GOARCH=arm64 go build -o $(STAGE)/server/plugin-darwin-arm64      ./server
 	GOOS=windows GOARCH=amd64 go build -o $(STAGE)/server/plugin-windows-amd64.exe ./server
-	go -C $(KANDEV_BACKEND) run ./cmd/plugin-pack -dir $(abspath $(STAGE)) -out $(abspath $(PKG_OUT))
+	cd $(KANDEV_BACKEND) && go run ./cmd/plugin-pack -dir $(CURDIR)/$(STAGE) -out $(CURDIR)/$(PKG_OUT)
 	rm -rf $(STAGE)
 	@echo "Wrote $(PKG_OUT)"
 
-## Host platform only — the fast local iteration loop.
+## Package only the current host platform for local installation checks.
 package-host:
 	rm -rf $(STAGE)
 	mkdir -p $(STAGE)/server $(STAGE)/ui
@@ -58,41 +85,29 @@ package-host:
 	cp slack-app-manifest.yaml $(STAGE)/slack-app-manifest.yaml
 	cp ui/bundle.js $(STAGE)/ui/bundle.js
 	go build -o $(STAGE)/server/plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE) ./server
-	go -C $(KANDEV_BACKEND) run ./cmd/plugin-pack -dir $(abspath $(STAGE)) -out $(abspath $(PKG_OUT)) -platform-only
+	cd $(KANDEV_BACKEND) && go run ./cmd/plugin-pack -dir $(CURDIR)/$(STAGE) -out $(CURDIR)/$(PKG_OUT) -platform-only
 	rm -rf $(STAGE)
 	@echo "Wrote $(PKG_OUT)"
 
-## Verify the generated archive, including the manifest-declared marketplace
-## icon and plugin-pack's checksums, before it reaches the host installer.
-define verify_package_archive
-set -eu; \
-VERIFY_DIR="$$(mktemp -d)"; \
-trap 'rm -rf "$$VERIFY_DIR"' EXIT; \
-test -f "$(PKG_OUT)" || { echo "package not found: $(PKG_OUT)"; exit 1; }; \
-tar -xzf "$(PKG_OUT)" -C "$$VERIFY_DIR"; \
-test -f "$$VERIFY_DIR/manifest.yaml"; \
-grep -Fx 'icon: "assets/icon.svg"' "$$VERIFY_DIR/manifest.yaml" >/dev/null; \
-test -f "$$VERIFY_DIR/assets/icon.svg"; \
-test -f "$$VERIFY_DIR/assets/NOTICE.md"; \
-test -f "$$VERIFY_DIR/README.md"; \
-test -f "$$VERIFY_DIR/docs/notifications.md"; \
-test -f "$$VERIFY_DIR/slack-app-manifest.yaml"; \
-test -f "$$VERIFY_DIR/ui/bundle.js"; \
-test -f "$$VERIFY_DIR/checksums.txt"; \
-grep -Eq '^[0-9a-f]{64}  assets/icon\.svg$$' "$$VERIFY_DIR/checksums.txt"; \
-if command -v sha256sum >/dev/null 2>&1; then \
-	(cd "$$VERIFY_DIR" && sha256sum -c checksums.txt); \
-else \
-	(cd "$$VERIFY_DIR" && shasum -a 256 -c checksums.txt); \
-fi; \
-$(1)
-endef
+## Build and verify all five platform binaries, the manifest, assets, and checksums.
+verify-package: package
+	@set -eu; \
+		tmp="$$(mktemp -d)"; \
+		trap 'rm -rf "$$tmp"' EXIT; \
+		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
+		sh scripts/verify-package.sh "$$tmp" full
 
-verify-package:
-	@$(call verify_package_archive,for executable in server/plugin-linux-amd64 server/plugin-linux-arm64 server/plugin-darwin-amd64 server/plugin-darwin-arm64 server/plugin-windows-amd64.exe; do test -f "$$VERIFY_DIR/$$executable" || { echo "package missing $$executable"; exit 1; }; done)
+## Build and verify the current host package.
+verify-package-host: package-host
+	@set -eu; \
+		tmp="$$(mktemp -d)"; \
+		trap 'rm -rf "$$tmp"' EXIT; \
+		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
+		sh scripts/verify-package.sh "$$tmp" host "$$(go env GOOS)-$$(go env GOARCH)"
 
-verify-package-host:
-	@$(call verify_package_archive,test -f "$$VERIFY_DIR/server/plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE)" || { echo "package missing host executable"; exit 1; })
+## Print the package path for release checks.
+package-file:
+	@printf '%s\n' "$(PKG_OUT)"
 
 clean:
 	rm -rf bin $(STAGE) kandev-plugin-slack-*.tar.gz

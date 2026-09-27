@@ -62,16 +62,6 @@ func (h *fakeHost) SetState(_ context.Context, _, _, key string, value map[strin
 	return nil
 }
 
-func (h *fakeHost) InvokeUtilityAgent(_ context.Context, prompt string) (string, error) {
-	h.mu.Lock()
-	h.prompts = append(h.prompts, prompt)
-	h.mu.Unlock()
-	if h.agentErr != nil {
-		return "", h.agentErr
-	}
-	return h.agentResponse, nil
-}
-
 func (h *fakeHost) Workspaces() pluginsdk.WorkspaceReader    { return fakeWorkspaces{} }
 func (h *fakeHost) Workflows() pluginsdk.WorkflowReader      { return fakeWorkflows{} }
 func (h *fakeHost) Repositories() pluginsdk.RepositoryReader { return fakeRepositories{} }
