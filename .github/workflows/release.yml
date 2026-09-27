@@ -202,7 +202,7 @@ jobs:
           make vet
           make test
           make verify-package
-          package_file="$(make -s package-file)"
+          package_file="$(make --no-print-directory -s package-file)"
           sh scripts/verify-release-version.sh "$TAG" "$package_file"
 
       - name: Report dry run
@@ -286,7 +286,7 @@ jobs:
           make vet
           make test
           make verify-package
-          package_file="$(make -s package-file)"
+          package_file="$(make --no-print-directory -s package-file)"
           sh scripts/verify-release-version.sh "$TAG" "$package_file"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "package=$package_file" >> "$GITHUB_OUTPUT"
