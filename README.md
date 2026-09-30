@@ -82,6 +82,8 @@ Kandev invokes the selected utility agent once for each request. The plugin give
 
 The plugin shows repository names to the utility agent. The task API does not accept a repository, so the created task has no repository.
 
+The plugin acknowledges each Socket Mode event before triage and deduplicates requests by channel, timestamp, and instruction. Routine disconnect frames are redialled.
+
 ## Browser-session fallback
 
 Use this mode only when your workspace forbids custom Slack apps. Enter a browser session token that starts with `xoxc-` and the `d` cookie from the same logged-in Slack tab.
@@ -144,6 +146,13 @@ make verify-package
 `make test` runs the Go tests and negative tests for package and release verification. `make verify-package-host` builds and checks one host archive. `make verify-package` cross-compiles every declared platform and checks the complete package inventory and checksums.
 
 The CI workflows use `.kandev-sdk-ref` for SDK builds. They also test and package against Kandev `v0.88.0`, the existing runtime minimum. See [Repository baseline](docs/repository-baseline.md) for the source pin and CI details.
+
+To install a local package while testing, first uninstall the existing plugin with the same ID and version. Then upload the archive produced by `make package`:
+
+```sh
+curl -X DELETE localhost:<port>/api/plugins/kandev-plugin-slack
+curl -F package=@kandev-plugin-slack-0.2.1.tar.gz localhost:<port>/api/plugins/install
+```
 
 ## Release process
 
