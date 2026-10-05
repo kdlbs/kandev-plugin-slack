@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2026-10-05
+
+### Changed
+
+- Align Slack plugin CI, packaging, and release baseline (4a29a2c)
+
+
 ## [0.2.1] - 2026-09-30
 
 ### Changed

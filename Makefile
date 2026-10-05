@@ -4,7 +4,7 @@
 	vet-minimum-host verify-package-host package-file clean
 
 BIN := bin/kandev-plugin-slack
-VERSION := 0.2.1
+VERSION := 0.3.0
 STAGE := .build/stage
 PKG_OUT := $(notdir $(BIN))-$(VERSION).tar.gz
 
