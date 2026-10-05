@@ -50,6 +50,34 @@ make verify-package
 
 CI also runs `make vet-minimum-host` and `make test-go-minimum-host` against Kandev `v0.88.0`. These targets select the test fake that matches that release's non-variadic `InvokeUtilityAgent` interface. They check the same plugin code against the minimum host SDK.
 
+To run those checks locally, use a separate v0.88.0 checkout. Keep the SDK
+source-pin checkout at `../kandev` unchanged:
+
+```sh
+set -eu
+MIN_HOST_DIR=../kandev-min-v0.88.0
+git clone --depth 1 --branch v0.88.0 https://github.com/kdlbs/kandev.git "$MIN_HOST_DIR"
+MIN_HOST_TMP="$(mktemp -d)"
+trap 'rm -rf "$MIN_HOST_TMP"' EXIT
+MIN_HOST_WORK="$MIN_HOST_TMP/go.work"
+PLUGIN_DIR="$(pwd)"
+MIN_HOST_BACKEND="$(cd "$MIN_HOST_DIR/apps/backend" && pwd)"
+cat > "$MIN_HOST_WORK" <<EOF
+go 1.26.0
+
+use $PLUGIN_DIR
+
+replace github.com/kandev/kandev => $MIN_HOST_BACKEND
+EOF
+GOWORK="$MIN_HOST_WORK" make vet-minimum-host
+GOWORK="$MIN_HOST_WORK" make test-go-minimum-host
+```
+
+The v0.88.0 tag resolves to `cab9eaf19d997bb4c8020dd263ddc60d5b035b64`.
+The temporary Go workspace selects that SDK only for these tagged
+compatibility checks. Run regular `make vet` and `make test` commands with the
+immutable `.kandev-sdk-ref` checkout.
+
 The UI is a single checked-in JavaScript bundle. This repository has no separate UI test or typecheck command. Package verification requires `ui/bundle.js` and rejects any unexpected package files.
 
 ## Package contents
@@ -58,8 +86,16 @@ The all-platform package contains the manifest, Slack app manifest, UI bundle, m
 
 The package verifier and release-version verifier have negative tests. CI calls them through `make test-package-verifier` and `make test-release-version`, which are also included in `make test`.
 
-## Release process and hold
+## Release process and validation status
 
 The `release` workflow accepts a version bump from `master` or a pushed `v*` tag. A manual release builds and checks the candidate package before it commits release metadata or pushes a tag. A pushed tag runs the same package and version checks before GitHub creates release assets. The workflow serializes releases and does not cancel an active release.
 
-**Release hold: do not merge until a stable Kandev release includes PR #3943 and this package has been validated against that release.** Do not dispatch the release workflow while this hold remains active.
+Kandev `v0.97.0` was published on 2026-10-04 at
+`e43881c7555372897b57ec51c705f1e05da43c40` and includes PR #3943. The package
+from this PR was installed and smoke-tested on that stable runtime. This
+satisfies the stable-host validation condition for the tested PR head and
+host-only archive; the PR evidence records their exact SHAs and test results.
+
+The PR remains parked until a separate parent/user instruction authorizes the
+next step. Do not merge, publish this plugin, or dispatch its release workflow
+as part of the validation work.

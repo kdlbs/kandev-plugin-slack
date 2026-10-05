@@ -158,7 +158,11 @@ curl -F package=@kandev-plugin-slack-0.2.1.tar.gz localhost:<port>/api/plugins/i
 
 Maintainers run the `release` workflow from `master` to select a version bump. The workflow checks the candidate package before it updates `master` or pushes a version tag. A pushed `v*` tag also runs package and version checks before GitHub creates release assets.
 
-**Release hold: do not merge until a stable Kandev release includes PR #3943 and this package has been validated against that release.** Do not dispatch the release workflow while this hold remains active.
+Kandev `v0.97.0` (release commit `e43881c7555372897b57ec51c705f1e05da43c40`)
+includes PR #3943. This package passed the stable-host validation described in
+[notification validation](docs/notification-validation.md). The validation
+condition is satisfied for the tested PR head and host-only archive. Merge and
+plugin publication remain held pending separate parent/user authorization.
 
 ## License
 
