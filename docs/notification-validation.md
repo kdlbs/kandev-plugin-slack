@@ -64,8 +64,48 @@ The plugin returns complete JSON fallback text to preserve recipient, status, du
 A separate Kandev fix preserves native structured fields alongside the error flag.
 The plugin works with either behavior.
 
-## Remaining deployment validation
+## Stable host release smoke
 
-No real Slack workspace participated in these tests.
-Actual Slack scope grants, user reachability, successful DM delivery, and repeated-call suppression need a test with the released plugin.
-The change does not release a package, install into production, or enable a production automation.
+Validation date: 2026-10-05.
+
+Kandev `v0.97.0` was published on 2026-10-04 at release commit
+`e43881c7555372897b57ec51c705f1e05da43c40`. The official
+[`kandev-linux-x64.tar.gz`](https://github.com/kdlbs/kandev/releases/tag/v0.97.0)
+asset passed its published SHA-256 check. The extracted executable reported
+`v0.97.0`, and the isolated runtime returned HTTP 200 from `/health` with
+`version: v0.97.0`.
+
+The host-only Slack package from this PR installed into that disposable Linux
+amd64 host. The package identity remained `kandev-plugin-slack` version
+`0.2.1`, with `min_kandev_version: 0.88.0`. The exact PR head and archive
+SHA-256 are recorded in the PR validation notes.
+
+The installed settings page was exercised in desktop Chromium 154 at
+1440×1000 and Playwright's Pixel 7 phone profile at 412×915 with touch enabled
+and a coarse pointer. The status card rendered as “Not configured”; all four
+Slack secret fields were empty. Desktop keyboard navigation reached
+“Test authentication” with a visible focus ring and activated it with Enter.
+That unconfigured test returned HTTP 400, while “Scan now” returned HTTP 202
+with `scheduled: true`. The phone profile had no horizontal overflow and its
+touch activation returned the same unconfigured result. No browser request to
+Slack was observed.
+
+For configuration lifecycle coverage, a synthetic utility-agent record in the
+disposable host was selected and the non-secret fallback command prefix was
+changed from `!kandev` to `!stable-smoke`. The config PATCH returned HTTP 200
+and the plugin subprocess restarted. No Slack app token, bot token, session
+token, or session cookie was set. The plugin stayed unconfigured. The plugin
+was then disabled and re-enabled through Settings; its subprocess stopped and
+started again, the row returned to Active, and the settings status card
+rendered after re-enable. The host continued to report `v0.97.0`.
+
+The v0.97.0 host log emitted its API v1 deprecation warning: API v1 uses the
+deprecated public-webhook-access default. This PR preserves API version 1 and
+its existing webhook behavior; migration to explicit access or API v2 is a
+separate compatibility change.
+
+The Pixel 7 result is browser device emulation, not a physical phone test. No
+real Slack account, credential, workspace, or message was used. Real workspace
+scope grants, Socket Mode authentication, DM delivery, and repeated-call
+suppression remain unvalidated. No production host or automation was changed,
+and no plugin release was published.

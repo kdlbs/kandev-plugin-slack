@@ -6,10 +6,11 @@ Some clients add a server prefix to this name.
 
 ## Compatibility and setup
 
-The minimum host and SDK version is **Kandev 0.88.0**.
+The minimum runtime host version is **Kandev 0.88.0**.
 That release includes `agent_tools`, `AgentToolPlugin`, and verified task/session/workspace context.
-The SDK remains part of the Kandev monorepo. CI uses its `v0.88.0` tag.
-The plugin requires no additional host capability beyond its existing `state` permission.
+The SDK remains part of the Kandev monorepo. CI and package builds use the fixed source pin in [`.kandev-sdk-ref`](../.kandev-sdk-ref).
+CI also builds and packages against the `v0.88.0` tag to retain the minimum-host compatibility check.
+The notification tool uses the existing `state` capability for idempotency. It adds no separate notification permission.
 
 1. Use Kandev 0.88.0 or later on the host and its matching agentctl on executors.
 2. Add the `im:write` bot scope from the updated Slack app manifest.
@@ -118,13 +119,15 @@ The plugin never sleeps through a rate limit and never automatically retries a S
 
 ## Validation
 
-Run these commands with a sibling Kandev checkout at `v0.88.0`:
+Run these commands with a sibling Kandev checkout at the source pin in `.kandev-sdk-ref`:
 
 ```bash
 make test vet
 go test -race ./server
 make package verify-package
 ```
+
+The CI minimum-host job separately runs the backend tests and host package checks against Kandev `v0.88.0`.
 
 Notification tests use a local Slack stub and disk-backed Host state.
 They cover concurrent calls, process-state reconstruction, payload conflicts, workspace/recipient isolation, permissions, redaction, and uncertain outcomes.
