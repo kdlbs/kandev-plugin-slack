@@ -77,9 +77,10 @@ A confirmed delivery also includes `channel` and `message_ts`.
 A rate-limit result includes `retry_after_seconds` when Slack supplies a valid delay.
 Only `delivered` returns `IsError: false`.
 
-Historical host limitation: Kandev 0.88.0 and the hosts recorded in the dated validation evidence omit native `structuredContent` for error results.
-The plugin also returns the complete result as JSON text, so callers retain all fields.
-Preserving native structured error results requires a separate Kandev host change.
+Hosts that omit native `structuredContent` for error results still receive the
+complete result as JSON text, so callers retain all fields. The plugin always
+returns this fallback and does not depend on native structured error support.
+The dated validation evidence records which hosts exhibited the limitation.
 A delivered result means Slack accepted the message. It does not mean the person read it.
 
 | Status | Meaning | Action |

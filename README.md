@@ -151,8 +151,8 @@ git clone --filter=blob:none --sparse https://github.com/kdlbs/kandev.git /tmp/s
 git -C /tmp/slack-packaging-tools sparse-checkout set apps/backend pluginsdk
 git -C /tmp/slack-packaging-tools checkout --detach "$(cat .kandev-tooling-ref)"
 make verify-package-host KANDEV_TOOLING=/tmp/slack-packaging-tools
+make test-minimum-host KANDEV_TOOLING=/tmp/slack-packaging-tools KANDEV_HOST_BIN=/path/to/released/kandev/bin/kandev
 make verify-package KANDEV_TOOLING=/tmp/slack-packaging-tools
-make test-minimum-host KANDEV_HOST_BIN=/path/to/released/kandev/bin/kandev
 ```
 
 `make test` runs Go and package/release verifier tests. Package checks verify

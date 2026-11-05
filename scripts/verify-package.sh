@@ -16,10 +16,11 @@ host_platform=${3-}
 [ -d "$package_dir" ] || fail "package directory not found: $package_dir"
 [ -f "$package_dir/manifest.yaml" ] || fail 'missing required file: manifest.yaml'
 
-manifest_icon=$(sed -nE 's/^icon: "?([^" ]+)"?$/\1/p' "$package_dir/manifest.yaml")
+manifest_icon=$(sed -nE 's/^icon: "([^"]+)"$/\1/p; s/^icon: ([^" ]+)$/\1/p' "$package_dir/manifest.yaml")
 [ "$manifest_icon" = "assets/icon.svg" ] || fail 'manifest icon must be assets/icon.svg'
 
 manifest_executables=$(awk '
+	/^[[:space:]]*(#|$)/ { next }
 	/^runtime:/ { in_runtime = 1; next }
 	in_runtime && /^[^ ]/ { exit }
 	in_runtime && $1 == "executables:" {
@@ -31,14 +32,19 @@ manifest_executables=$(awk '
 	in_executables && NF {
 		match($0, /[^ ]/)
 		if (RSTART - 1 <= executables_indent) exit
-		if (NF != 2) exit 1
+		if (NF < 2 || (NF > 2 && $3 !~ /^#/)) exit 1
+		if ($1 !~ /^[[:alnum:]_-]+:$/) exit 1
 		platform = $1
 		sub(/:$/, "", platform)
 		path = $2
-		gsub(/"/, "", path)
+		if (path ~ /^"/) {
+			if (path !~ /^"[^"]+"$/) exit 1
+			path = substr(path, 2, length(path) - 2)
+		} else if (path ~ /"/) exit 1
 		print platform " " path
 	}
-' "$package_dir/manifest.yaml" | LC_ALL=C sort)
+' "$package_dir/manifest.yaml") || fail 'invalid manifest runtime.executables'
+manifest_executables=$(printf '%s\n' "$manifest_executables" | LC_ALL=C sort)
 expected_executables=$(printf '%s\n' \
 	'darwin-amd64 server/plugin-darwin-amd64' \
 	'darwin-arm64 server/plugin-darwin-arm64' \

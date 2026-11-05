@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Install a Slack archive on an isolated released host, without Slack credentials.
+"""Install a Slack archive on an isolated released Linux host.
 
 Checks package admission, Host gRPC state/config/webhook calls, bundle serving,
 config restart, and disable/re-enable. It does not contact Slack or start a task
 agent; notification MCP routing and browser rendering require separate checks.
+Uses only a deliberately incomplete synthetic token, rejected before Slack I/O.
 """
 import argparse
 import json
@@ -30,7 +31,10 @@ host = str(Path(host).resolve())
 manifest = Path("manifest.yaml").read_text()
 plugin_version = re.search(r'^version: "?([0-9]+\.[0-9]+\.[0-9]+)"?$', manifest, re.MULTILINE).group(1)
 archive = args.package.resolve()
-assert archive.is_file(), archive
+if not archive.is_file():
+    parser.error(f"package not found: {archive}; run make verify-package-host first")
+if not Path("/proc/self/stat").is_file():
+    parser.error("this smoke requires Linux /proc for subprocess restart evidence")
 assert subprocess.check_output([host, "--version"], text=True).strip() == "v0.99.0"
 with socket.socket() as sock:
     sock.bind(("127.0.0.1", 0))
@@ -66,6 +70,26 @@ def wait_for(check, seconds=180):
             last = err
         time.sleep(0.25)
     raise AssertionError(f"host check timed out: {last}")
+
+
+def plugin_process_identity(executable):
+    """Require one live installed executable and include its kernel start time."""
+    identities = []
+    for link in Path("/proc").glob("[0-9]*/exe"):
+        try:
+            if link.resolve(strict=True) == executable:
+                fields = (link.parent / "stat").read_text().rsplit(")", 1)[1].split()
+                identities.append((int(link.parent.name), fields[19]))
+        except (OSError, ValueError):
+            continue
+    return identities[0] if len(identities) == 1 else None
+
+
+def persisted_error():
+    status = request(plugin + "/webhooks/status")
+    if status.get("checkedAt") and "app-level token" in status.get("error", ""):
+        return status
+    return None
 
 
 with tempfile.TemporaryDirectory(prefix="slack-minimum-host-") as tmp:
@@ -106,24 +130,38 @@ with tempfile.TemporaryDirectory(prefix="slack-minimum-host-") as tmp:
             bundle = request(plugin + "/bundle")
             assert b"registerComponent" in bundle and b"plugin-settings" in bundle
             assert request(plugin + "/config")["config"] == {}, "unexpected initial credentials"
-            print("Host state/config roundtrips, all declared webhooks, method/route rejection, UI bundle served", flush=True)
-            # Required utility_agent is synthetic; no credentials means no Slack traffic.
-            config = {"utility_agent": "migration-smoke", "command_prefix": "!sdk-smoke"}
+            print("All declared webhooks, method/route rejection, UI bundle served", flush=True)
+            executable = (Path(record["install_path"]) / record["runtime"]["executables"]["linux-amd64"]).resolve()
+            original_process = wait_for(lambda: plugin_process_identity(executable))
+            # A missing app token makes validation fail before any Slack I/O.
+            # recordUnconfigured must write a non-default error and checkedAt.
+            config = {"utility_agent": "migration-smoke", "command_prefix": "!sdk-smoke",
+                      "bot_token": "deliberately-invalid-smoke-token"}
             request(plugin, "PATCH", {"config": config})
             wait_for(lambda: request(plugin)["status"] == "active")
-            wait_for(lambda: request(plugin + "/webhooks/status"))
+            def replacement_process():
+                identity = plugin_process_identity(executable)
+                return identity if identity and identity != original_process else None
+
+            restarted_process = wait_for(replacement_process)
+            saved_state = wait_for(persisted_error)
             assert request(plugin + "/config")["config"]["command_prefix"] == "!sdk-smoke"
+            print(f"Config PATCH replaced subprocess {original_process} with {restarted_process}", flush=True)
             request(plugin + "/disable", "POST", {})
             wait_for(lambda: request(plugin)["status"] == "disabled")
+            wait_for(lambda: plugin_process_identity(executable) is None)
             assert request(plugin + "/config")["config"]["command_prefix"] == "!sdk-smoke"
             request(plugin + "/enable", "POST", {})
             wait_for(lambda: request(plugin)["status"] == "active")
-            wait_for(lambda: request(plugin + "/webhooks/status"))
+            enabled_process = wait_for(lambda: plugin_process_identity(executable))
+            assert enabled_process != restarted_process, (enabled_process, restarted_process)
+            restored_state = wait_for(persisted_error)
+            assert restored_state["checkedAt"] == saved_state["checkedAt"], (restored_state, saved_state)
             assert request(plugin + "/config")["config"]["command_prefix"] == "!sdk-smoke"
-            print("Config restart and disable/re-enable preserve config and restore webhook service", flush=True)
+            print("Host state checkedAt survives subprocess replacement; config and webhooks restored", flush=True)
             request(plugin, "DELETE")
             request(plugin, expected=404)
-            print("Disposable plugin uninstalled; no Slack credentials or external messages used", flush=True)
+            print("Disposable plugin uninstalled; no valid Slack credentials or external messages used", flush=True)
         except BaseException:
             log.flush()
             print(log_path.read_text()[-8000:])

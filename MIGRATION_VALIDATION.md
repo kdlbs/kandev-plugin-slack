@@ -60,11 +60,12 @@ Additional checks in the attached worktree:
 go test ./server/...
 go vet ./server/...
 go test -race ./server/... -timeout 120s
-go run github.com/rhysd/actionlint/cmd/actionlint@latest .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/release.yml
+go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/release.yml
 git diff --check
 ```
 
-All passed. Actionlint resolved to v1.7.12. New normalized-manifest fixtures
+All passed. Actionlint was initially resolved from @latest to v1.7.12; the
+recorded replay command now pins that version and was rerun during review. New normalized-manifest fixtures
 failed first with the expected package-icon and missing archive-version
 messages; they pass after the verifier corrections. Existing negative tests
 continue to reject missing/corrupt/unexpected files, checksums, wrong platform
@@ -95,7 +96,7 @@ From the standalone clone:
 ```sh
 GOWORK=off make verify-package-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
 cp kandev-plugin-slack-0.3.0.tar.gz /tmp/slack-sdk-migration/host-package.tar.gz
-GOWORK=off make test-minimum-host KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
+GOWORK=off make test-minimum-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
 GOWORK=off make verify-package KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
 sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
 tar -tvzf kandev-plugin-slack-0.3.0.tar.gz
@@ -112,7 +113,8 @@ Full five-platform construction, inventory, internal checksums, and release
 identity checks passed for Linux amd64/arm64, Darwin amd64/arm64, and Windows
 amd64. The archive has 17 files (including checksums.txt); no build tooling or
 SDK source is shipped. Full archive SHA-256:
-`ef6eaec76ac76165db95c8d1e6a57e2a175ba1d80bc554cc0d79470caf4d61f1`.
+`ef6eaec76ac76165db95c8d1e6a57e2a175ba1d80bc554cc0d79470caf4d61f1`
+(initial migration archive; review follow-up hashes are recorded below).
 
 The official `kandev-linux-x64.tar.gz` and its published SHA-256 file were
 fetched using `gh release download v0.99.0 --repo kdlbs/kandev`, verified with
@@ -132,7 +134,43 @@ released-host smoke (the final run used the updated version-aware smoke script):
 - Clean uninstall from the disposable instance.
 
 Host archive SHA-256:
-`9183fba00629a8300e04f70c915fc7605aadf9dc9145e40d4ff3779029c46f14`.
+`9183fba00629a8300e04f70c915fc7605aadf9dc9145e40d4ff3779029c46f14`
+(initial migration archive; review follow-up hashes are recorded below).
+
+## Review hardening verification
+
+The initial head's CI passed all five checks. Its automated review identified
+additional verifier and smoke-evidence gaps; those claims are superseded by the
+following verification. Regression fixtures first failed on executable comments
+and dangling source-version quotes. Updated checks now reject dangling icon,
+executable, and source/archive version quotes and propagate malformed executable
+parser failures before sorting, while accepting YAML comments.
+
+`make test-minimum-host` now builds/verifies its host archive as a prerequisite.
+The strengthened Linux smoke identifies the installed executable through `/proc`
+and compares both PID and kernel start time after config PATCH. It supplies a
+deliberately incomplete synthetic bot token (without an app token), which fails
+local validation before Slack I/O. This forces the plugin to persist an error
+and nonempty checkedAt through Host state. The identical checkedAt must survive
+an observed process exit and replacement on disable/re-enable. These assertions
+passed; no real Slack credential or external message was used.
+
+Review verification commands (all passed):
+
+```sh
+make check-format vet test
+go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/release.yml
+make test-minimum-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
+make verify-package KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
+sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
+git diff --check
+```
+
+The repeated package checks cover the updated packaged documentation and
+unchanged runtime behavior. Review follow-up archive SHA-256 values:
+
+- Host-only: `24a2ab61eda4df4d6d6290687c1f43be5d1183b24569e75c61f40a4bed60dfc5`.
+- Five-platform: `51836b5e52aa0a1ab05fd687e0422565c3a392a648196eb0b9170ea3770ccc4e`.
 
 ## Limits and external actions
 

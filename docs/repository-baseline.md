@@ -84,14 +84,19 @@ Minimum-host jobs download the official v0.99.0 Linux x64 runtime, verify its
 published SHA-256, construct a host package, then run:
 
 ```sh
-make test-minimum-host KANDEV_HOST_BIN=/path/to/kandev/bin/kandev
+make test-minimum-host KANDEV_TOOLING=/tmp/slack-packaging-tools KANDEV_HOST_BIN=/path/to/kandev/bin/kandev
 ```
 
-The script insists on v0.99.0 and uses a temporary home, database, and loopback
-port. It checks package admission, API v1 subprocess startup, Host state/config
-roundtrips, status/test/scan webhooks, invalid route/method handling, bundle
-serving, config restart, disable/re-enable with config retention, and uninstall.
-It uses no Slack credentials. It does not prove live Slack authentication,
+The target builds and verifies its host-only archive before running the smoke.
+The Linux script insists on v0.99.0 and uses a temporary home, database, and
+loopback port. It checks package admission, API v1 subprocess startup, Host
+state/config roundtrips, status/test/scan webhooks, invalid route/method handling,
+bundle serving, config restart, disable/re-enable with config retention, and
+uninstall. It compares Linux process IDs and kernel start times to prove
+subprocess replacement. A deliberately incomplete synthetic token fails local
+validation before Slack I/O, causing a non-default error/checkedAt state write;
+that exact checkedAt must survive disable/re-enable. No real Slack credential
+is used. It does not prove live Slack authentication,
 Socket Mode delivery, task-agent MCP routing, SSH, or browser rendering. The Go
 suite covers triage and notification delivery with fake Host/HTTP fixtures;
 those checks are separate from released-host smoke evidence.

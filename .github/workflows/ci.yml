@@ -91,7 +91,6 @@ jobs:
           make sdk-check
           make vet test-go
           make test-package-verifier test-release-version
-          make verify-package-host
 
       - name: Download and verify released minimum host
         env:

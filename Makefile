@@ -33,7 +33,7 @@ test: test-go test-package-verifier test-release-version
 test-go:
 	go test ./server
 
-test-minimum-host:
+test-minimum-host: verify-package-host
 	python3 scripts/smoke-minimum-host.py --host "$(KANDEV_HOST_BIN)" --package "$(PKG_OUT)"
 
 test-package-verifier:
