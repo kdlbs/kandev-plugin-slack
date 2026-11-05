@@ -16,14 +16,22 @@ host_platform=${3-}
 [ -d "$package_dir" ] || fail "package directory not found: $package_dir"
 [ -f "$package_dir/manifest.yaml" ] || fail 'missing required file: manifest.yaml'
 
-manifest_icon=$(sed -nE 's/^icon: "([^"]+)"$/\1/p' "$package_dir/manifest.yaml")
+manifest_icon=$(sed -nE 's/^icon: "?([^" ]+)"?$/\1/p' "$package_dir/manifest.yaml")
 [ "$manifest_icon" = "assets/icon.svg" ] || fail 'manifest icon must be assets/icon.svg'
 
 manifest_executables=$(awk '
-	$0 == "runtime:" { in_runtime = 1; next }
-	in_runtime && $0 == "  executables:" { in_executables = 1; next }
-	in_executables && $0 !~ /^    / { exit }
-	in_executables && /^    [[:alnum:]_-]+: "[^"]+"$/ {
+	/^runtime:/ { in_runtime = 1; next }
+	in_runtime && /^[^ ]/ { exit }
+	in_runtime && $1 == "executables:" {
+		in_executables = 1
+		match($0, /[^ ]/)
+		executables_indent = RSTART - 1
+		next
+	}
+	in_executables && NF {
+		match($0, /[^ ]/)
+		if (RSTART - 1 <= executables_indent) exit
+		if (NF != 2) exit 1
 		platform = $1
 		sub(/:$/, "", platform)
 		path = $2
@@ -37,16 +45,19 @@ expected_executables=$(printf '%s\n' \
 	'linux-amd64 server/plugin-linux-amd64' \
 	'linux-arm64 server/plugin-linux-arm64' \
 	'windows-amd64 server/plugin-windows-amd64.exe' | LC_ALL=C sort)
-[ "$manifest_executables" = "$expected_executables" ] || fail 'manifest runtime.executables does not match the supported platform set'
 
 case "$mode" in
 	full)
+		[ "$manifest_executables" = "$expected_executables" ] || fail 'manifest runtime.executables does not match the supported platform set'
 		executable_paths=$(printf '%s\n' "$manifest_executables" | awk '{ print $2 }')
 		;;
 	host)
 		[ -n "$host_platform" ] || fail 'host mode requires a platform name'
 		executable_paths=$(printf '%s\n' "$manifest_executables" | awk -v platform="$host_platform" '$1 == platform { print $2 }')
 		[ -n "$executable_paths" ] || fail "host platform is not declared: $host_platform"
+		expected_host=$(printf '%s\n' "$expected_executables" | awk -v platform="$host_platform" '$1 == platform')
+		[ -n "$expected_host" ] || fail "unsupported host platform: $host_platform"
+		[ "$manifest_executables" = "$expected_executables" ] || [ "$manifest_executables" = "$expected_host" ] || fail 'unexpected host manifest executable set'
 		;;
 	*)
 		fail "unknown verification mode: $mode"

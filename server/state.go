@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // Host state is the durable half of the plugin: the watermarks that stop a

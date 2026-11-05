@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // These tests drive the whole plugin — config, Slack calls, agent, task

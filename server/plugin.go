@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // slackPlugin implements the Kandev plugin surface. The Slack work itself

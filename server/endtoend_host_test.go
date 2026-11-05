@@ -1,11 +1,9 @@
-//go:build !kandev_min_host
-
 package main
 
 import (
 	"context"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 func (h *fakeHost) InvokeUtilityAgent(_ context.Context, prompt string, _ ...pluginsdk.UtilityAgentOptions) (string, error) {

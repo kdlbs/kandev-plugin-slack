@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // acknowledgeReaction is added to a matched message before the agent runs, so

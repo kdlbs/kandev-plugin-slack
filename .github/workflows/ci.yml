@@ -21,35 +21,19 @@ jobs:
         with:
           path: plugin
 
-      - name: Read pinned Kandev source revision
-        id: sdk
-        working-directory: plugin
-        run: |
-          set -euo pipefail
-          sdk_ref="$(cat .kandev-sdk-ref)"
-          [[ "$sdk_ref" =~ ^[0-9a-f]{40}$ ]]
-          echo "ref=$sdk_ref" >> "$GITHUB_OUTPUT"
-
-      - name: Check out pinned Kandev SDK
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-        with:
-          repository: kdlbs/kandev
-          ref: ${{ steps.sdk.outputs.ref }}
-          path: kandev
-          sparse-checkout: apps/backend
-
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: plugin/go.mod
           cache-dependency-path: plugin/go.sum
 
-      - name: Check SDK pin and module files
+      - name: Install public SDK and check module files
         working-directory: plugin
         run: |
           set -euo pipefail
-          make check-sdk-pin
+          go mod download
           go mod tidy
+          make sdk-check
           git diff --exit-code -- go.mod go.sum
 
       - name: Check formatting
@@ -65,7 +49,7 @@ jobs:
         run: make test
 
   minimum-host:
-    name: Check Kandev 0.88.0 compatibility
+    name: Smoke test Kandev 0.99.0
     runs-on: ubuntu-latest
     steps:
       - name: Check out plugin
@@ -73,13 +57,24 @@ jobs:
         with:
           path: plugin
 
-      - name: Check out minimum supported Kandev release
+      - name: Read pinned packaging tooling revision
+        id: tooling
+        working-directory: plugin
+        run: |
+          set -euo pipefail
+          tooling_ref="$(cat .kandev-tooling-ref)"
+          [[ "$tooling_ref" =~ ^[0-9a-f]{40}$ ]]
+          echo "ref=$tooling_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out pinned packaging tooling
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           repository: kdlbs/kandev
-          ref: v0.88.0
+          ref: ${{ steps.tooling.outputs.ref }}
           path: kandev
-          sparse-checkout: apps/backend
+          sparse-checkout: |
+            apps/backend
+            pluginsdk
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -92,10 +87,29 @@ jobs:
         run: |
           set -euo pipefail
           make check-format
-          make vet-minimum-host
-          make test-go-minimum-host
+          go mod download
+          make sdk-check
+          make vet test-go
           make test-package-verifier test-release-version
           make verify-package-host
+
+      - name: Download and verify released minimum host
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/minimum-host"
+          gh release download v0.99.0 --repo kdlbs/kandev \
+            --pattern kandev-linux-x64.tar.gz \
+            --pattern kandev-linux-x64.tar.gz.sha256 \
+            --dir "$RUNNER_TEMP/minimum-host"
+          cd "$RUNNER_TEMP/minimum-host"
+          sha256sum -c kandev-linux-x64.tar.gz.sha256
+          tar -xzf kandev-linux-x64.tar.gz
+
+      - name: Install and smoke test on minimum host
+        working-directory: plugin
+        run: make test-minimum-host KANDEV_HOST_BIN="$RUNNER_TEMP/minimum-host/kandev/bin/kandev"
 
   package:
     name: Build and verify all platform packages
@@ -106,22 +120,24 @@ jobs:
         with:
           path: plugin
 
-      - name: Read pinned Kandev source revision
-        id: sdk
+      - name: Read pinned packaging tooling revision
+        id: tooling
         working-directory: plugin
         run: |
           set -euo pipefail
-          sdk_ref="$(cat .kandev-sdk-ref)"
-          [[ "$sdk_ref" =~ ^[0-9a-f]{40}$ ]]
-          echo "ref=$sdk_ref" >> "$GITHUB_OUTPUT"
+          tooling_ref="$(cat .kandev-tooling-ref)"
+          [[ "$tooling_ref" =~ ^[0-9a-f]{40}$ ]]
+          echo "ref=$tooling_ref" >> "$GITHUB_OUTPUT"
 
-      - name: Check out pinned Kandev SDK
+      - name: Check out pinned packaging tooling
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           repository: kdlbs/kandev
-          ref: ${{ steps.sdk.outputs.ref }}
+          ref: ${{ steps.tooling.outputs.ref }}
           path: kandev
-          sparse-checkout: apps/backend
+          sparse-checkout: |
+            apps/backend
+            pluginsdk
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -129,9 +145,11 @@ jobs:
           go-version-file: plugin/go.mod
           cache-dependency-path: plugin/go.sum
 
-      - name: Check SDK pin
+      - name: Check packaging tooling pin
         working-directory: plugin
-        run: make check-sdk-pin
+        run: |
+          go mod download
+          make sdk-check check-tooling-pin
 
       - name: Package and verify every declared platform
         working-directory: plugin

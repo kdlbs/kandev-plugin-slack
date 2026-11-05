@@ -56,6 +56,13 @@ package_file=$(cd "$test_dir/matching-package" && make --no-print-directory -s p
 tar -czf "$test_dir/matching-package/$package_file" -C "$test_dir/matching-package/archive" manifest.yaml
 (cd "$test_dir/matching-package" && sh "$verify_script" "v$base_version" "$package_file")
 
+make_fixture normalized-package
+mkdir -p "$test_dir/normalized-package/archive"
+sed 's/^version: "\([^"]*\)"$/version: \1/' "$test_dir/normalized-package/manifest.yaml" > "$test_dir/normalized-package/archive/manifest.yaml"
+package_file=$(cd "$test_dir/normalized-package" && make --no-print-directory -s package-file)
+tar -czf "$test_dir/normalized-package/$package_file" -C "$test_dir/normalized-package/archive" manifest.yaml
+(cd "$test_dir/normalized-package" && sh "$verify_script" "v$base_version" "$package_file")
+
 make_fixture wrong-package-name
 mkdir -p "$test_dir/wrong-package-name/archive"
 cp "$test_dir/wrong-package-name/manifest.yaml" "$test_dir/wrong-package-name/archive/manifest.yaml"

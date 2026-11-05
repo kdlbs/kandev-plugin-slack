@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // probeInterval is how often stored credentials are re-validated in the

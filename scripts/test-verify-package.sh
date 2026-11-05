@@ -91,6 +91,18 @@ done
 write_checksums "$host_fixture"
 sh "$verify_script" "$host_fixture" host "$host_platform" >/dev/null
 
+# Current plugin-pack normalizes YAML and narrows a host-only manifest.
+copy_fixture normalized-full
+sed 's/"//g; s/^    /        /; s/^  \([^ ]\)/    \1/' "$test_dir/normalized-full/manifest.yaml" > "$test_dir/normalized-full/manifest.next"
+mv "$test_dir/normalized-full/manifest.next" "$test_dir/normalized-full/manifest.yaml"
+write_checksums "$test_dir/normalized-full"
+sh "$verify_script" "$test_dir/normalized-full" full >/dev/null
+
+cp -R "$host_fixture" "$test_dir/normalized-host"
+awk -v platform="$host_platform:" '$1 !~ /^(linux|darwin|windows)-/ || $1 == platform' "$test_dir/normalized-full/manifest.yaml" > "$test_dir/normalized-host/manifest.yaml"
+write_checksums "$test_dir/normalized-host"
+sh "$verify_script" "$test_dir/normalized-host" host "$host_platform" >/dev/null
+
 for required in \
 	manifest.yaml assets/icon.svg assets/NOTICE.md README.md \
 	docs/notifications.md docs/notification-validation.md \
