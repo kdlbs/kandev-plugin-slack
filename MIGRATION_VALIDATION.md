@@ -152,8 +152,9 @@ and compares both PID and kernel start time after config PATCH. It supplies a
 deliberately incomplete synthetic bot token (without an app token), which fails
 local validation before Slack I/O. This forces the plugin to persist an error
 and nonempty checkedAt through Host state. The identical checkedAt must survive
-an observed process exit and replacement on disable/re-enable. These assertions
-passed; no real Slack credential or external message was used.
+an observed process exit and replacement on disable/re-enable. A two-second
+interval ensures that recreating lost state cannot accidentally reuse the
+second-resolution timestamp. These assertions passed; no real Slack credential or external message was used.
 
 Review verification commands (all passed):
 
@@ -171,6 +172,13 @@ unchanged runtime behavior. Review follow-up archive SHA-256 values:
 
 - Host-only: `24a2ab61eda4df4d6d6290687c1f43be5d1183b24569e75c61f40a4bed60dfc5`.
 - Five-platform: `51836b5e52aa0a1ab05fd687e0422565c3a392a648196eb0b9170ea3770ccc4e`.
+
+The final timestamp-precision assertion was also verified directly against the
+same host-only artifact (scripts and this report are not packaged):
+
+```sh
+python3 scripts/smoke-minimum-host.py --host /tmp/slack-sdk-migration/host/kandev/bin/kandev --package /tmp/slack-sdk-migration/review-host-package.tar.gz
+```
 
 ## Limits and external actions
 

@@ -147,6 +147,9 @@ with tempfile.TemporaryDirectory(prefix="slack-minimum-host-") as tmp:
             saved_state = wait_for(persisted_error)
             assert request(plugin + "/config")["config"]["command_prefix"] == "!sdk-smoke"
             print(f"Config PATCH replaced subprocess {original_process} with {restarted_process}", flush=True)
+            # checkedAt has second precision. A lost state record recreated by
+            # the next process must not accidentally receive the same marker.
+            time.sleep(2)
             request(plugin + "/disable", "POST", {})
             wait_for(lambda: request(plugin)["status"] == "disabled")
             wait_for(lambda: plugin_process_identity(executable) is None)
