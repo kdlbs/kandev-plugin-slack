@@ -180,6 +180,33 @@ same host-only artifact (scripts and this report are not packaged):
 python3 scripts/smoke-minimum-host.py --host /tmp/slack-sdk-migration/host/kandev/bin/kandev --package /tmp/slack-sdk-migration/review-host-package.tar.gz
 ```
 
+A subsequent review found that the process helper treated multiple matches as
+no process. A regression with two real isolated Linux processes failed before
+the correction, then passed after duplicates became an explicit RuntimeError.
+`make test` now includes `python3 scripts/test-smoke-processes.py`; it covers no
+process, one process with PID/start-time evidence, duplicates, and process exit.
+The revised minimum-host smoke and full package checks also passed. AGENTS.md
+now supplies the packaging input explicitly, and the baseline describes package
+construction only through the self-contained smoke target.
+
+The changed AGENTS.md passed the parent harness validator and its regression
+suite; its 11 lines remain below the 300-line limit. Commands:
+
+```sh
+python3 /tmp/slack-sdk-migration/source/.github/scripts/lint-harness-files.py AGENTS.md
+python3 /tmp/slack-sdk-migration/source/scripts/lint-harness-files.test.py
+make check-format vet test
+make test-minimum-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
+make verify-package KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
+sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
+```
+
+Final archive hashes after the documentation correction (supersede the prior
+review artifact hashes):
+
+- Host-only: `a09c27da2e51aa8032a1efac56d45820aa58b3f4ce57f386455db683ea0d8678`.
+- Five-platform: `95bdcf51211712e40c6918a6817c4692b6cc375a6bc44a2fcfdceb18a3d0ccf0`.
+
 ## Limits and external actions
 
 Released-host smoke does not revalidate browser rendering, task-agent MCP tool

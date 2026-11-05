@@ -81,7 +81,7 @@ retain only the pinned packaging input. Their sparse checkout includes both
 `apps/backend` and `pluginsdk`.
 
 Minimum-host jobs download the official v0.99.0 Linux x64 runtime, verify its
-published SHA-256, construct a host package, then run:
+published SHA-256, then run the target that constructs and verifies the package:
 
 ```sh
 make test-minimum-host KANDEV_TOOLING=/tmp/slack-packaging-tools KANDEV_HOST_BIN=/path/to/kandev/bin/kandev

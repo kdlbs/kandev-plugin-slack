@@ -20,6 +20,8 @@ import time
 import urllib.error
 import urllib.request
 
+from smoke_process import plugin_process_identity
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--host", required=True, help="Released Kandev executable")
 parser.add_argument("--package", required=True, type=Path)
@@ -70,19 +72,6 @@ def wait_for(check, seconds=180):
             last = err
         time.sleep(0.25)
     raise AssertionError(f"host check timed out: {last}")
-
-
-def plugin_process_identity(executable):
-    """Require one live installed executable and include its kernel start time."""
-    identities = []
-    for link in Path("/proc").glob("[0-9]*/exe"):
-        try:
-            if link.resolve(strict=True) == executable:
-                fields = (link.parent / "stat").read_text().rsplit(")", 1)[1].split()
-                identities.append((int(link.parent.name), fields[19]))
-        except (OSError, ValueError):
-            continue
-    return identities[0] if len(identities) == 1 else None
 
 
 def persisted_error():

@@ -1,5 +1,5 @@
 .PHONY: build run test test-go test-minimum-host test-package-verifier \
-	test-release-version fmt \
+	test-release-version test-smoke-processes fmt \
 	check-format sdk-check check-tooling-pin vet package package-host verify-package \
 	verify-package-host package-file clean
 
@@ -28,7 +28,7 @@ build: sdk-check
 run: build
 	./$(BIN)
 
-test: test-go test-package-verifier test-release-version
+test: test-go test-package-verifier test-release-version test-smoke-processes
 
 test-go:
 	go test ./server
@@ -41,6 +41,9 @@ test-package-verifier:
 
 test-release-version:
 	sh scripts/test-verify-release-version.sh
+
+test-smoke-processes:
+	python3 scripts/test-smoke-processes.py
 
 fmt:
 	gofmt -w ./server
