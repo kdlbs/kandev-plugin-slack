@@ -8,6 +8,7 @@ agent; notification MCP routing and browser rendering require separate checks.
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import signal
@@ -26,6 +27,8 @@ host = shutil.which(args.host)
 if not host:
     parser.error("host executable not found: " + args.host)
 host = str(Path(host).resolve())
+manifest = Path("manifest.yaml").read_text()
+plugin_version = re.search(r'^version: "?([0-9]+\.[0-9]+\.[0-9]+)"?$', manifest, re.MULTILINE).group(1)
 archive = args.package.resolve()
 assert archive.is_file(), archive
 assert subprocess.check_output([host, "--version"], text=True).strip() == "v0.99.0"
@@ -92,7 +95,7 @@ with tempfile.TemporaryDirectory(prefix="slack-minimum-host-") as tmp:
             wait_for(lambda: request(plugin)["status"] == "active")
             record = request(plugin)
             assert record["api_version"] == 1 and record["min_kandev_version"] == "0.99.0", record
-            assert record["version"] == "0.3.0", record
+            assert record["version"] == plugin_version, record
             print("Package admitted; managed API v1 subprocess active", flush=True)
             status = wait_for(lambda: request(plugin + "/webhooks/status"))
             assert status["configured"] is False, status
@@ -128,7 +131,10 @@ with tempfile.TemporaryDirectory(prefix="slack-minimum-host-") as tmp:
                 print(backend_log.read_text()[-8000:])
             raise
         finally:
-            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 process.wait(timeout=15)
             except subprocess.TimeoutExpired:
