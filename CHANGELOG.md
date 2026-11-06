@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0] - 2026-11-06
+
+### Changed
+
+- chore: migrate Slack to public plugin SDK v0.1.0 (#10) (a297504)
+
+
 ## [0.3.0] - 2026-10-05
 
 ### Changed
