@@ -260,8 +260,8 @@ the released-host smoke passed with the revised helper.
 
 Automated released-host smoke does not start a task; the supplemental check
 above validates local task-agent MCP routing. Browser rendering, SSH executors,
-real Slack scope grants, Socket Mode authentication,
-triage creation, DM delivery, or external repeated-call suppression. The Go
+real Slack scope grants, Socket Mode authentication, triage creation, DM delivery,
+and external repeated-call suppression remain unverified. The Go
 suite covers triage and notification outcomes with fake Host/HTTP fixtures;
 that is not live external-service evidence. Historical tests are retained,
 with their dates and host versions, in `docs/notification-validation.md`.
