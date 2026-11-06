@@ -162,6 +162,8 @@ Review verification commands (all passed):
 make check-format vet test
 go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/release.yml
 make test-minimum-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
+cp kandev-plugin-slack-0.3.0.tar.gz /tmp/slack-sdk-migration/round3-host-package.tar.gz
+sha256sum /tmp/slack-sdk-migration/round3-host-package.tar.gz
 make verify-package KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
 sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
 git diff --check
@@ -197,6 +199,8 @@ python3 /tmp/slack-sdk-migration/source/.github/scripts/lint-harness-files.py AG
 python3 /tmp/slack-sdk-migration/source/scripts/lint-harness-files.test.py
 make check-format vet test
 make test-minimum-host KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling KANDEV_HOST_BIN=/tmp/slack-sdk-migration/host/kandev/bin/kandev
+cp kandev-plugin-slack-0.3.0.tar.gz /tmp/slack-sdk-migration/round3-host-package.tar.gz
+sha256sum /tmp/slack-sdk-migration/round3-host-package.tar.gz
 make verify-package KANDEV_TOOLING=/tmp/slack-sdk-migration/kandev-tooling
 sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
 ```
@@ -204,13 +208,59 @@ sh scripts/verify-release-version.sh v0.3.0 kandev-plugin-slack-0.3.0.tar.gz
 Final archive hashes after the documentation correction (supersede the prior
 review artifact hashes):
 
-- Host-only: `a09c27da2e51aa8032a1efac56d45820aa58b3f4ce57f386455db683ea0d8678`.
-- Five-platform: `95bdcf51211712e40c6918a6817c4692b6cc375a6bc44a2fcfdceb18a3d0ccf0`.
+- `/tmp/slack-sdk-migration/round3-host-package.tar.gz` (host-only): `a09c27da2e51aa8032a1efac56d45820aa58b3f4ce57f386455db683ea0d8678`.
+- `kandev-plugin-slack-0.3.0.tar.gz` (five-platform): `95bdcf51211712e40c6918a6817c4692b6cc375a6bc44a2fcfdceb18a3d0ccf0`.
+
+## Supplemental started-task MCP check (2026-11-06)
+
+The released v0.99.0 binary also ran with the E2E mock-agent profile in a
+separate temporary HOME/XDG/home/database/config environment and explicit
+loopback binding. Inherited KANDEV_/AGENTCTL_ variables were removed; `/health`
+confirmed `v0.99.0`. The mock-agent helper was built from the same pinned host
+commit, without changing the released host executable:
+
+```sh
+# In /tmp/slack-sdk-migration/kandev-tooling/apps/backend:
+go build -o /tmp/slack-sdk-migration/mcp-bin/mock-agent ./cmd/mock-agent
+cp /tmp/slack-sdk-migration/mcp-bin/mock-agent /tmp/slack-sdk-migration/host/kandev/bin/mock-agent
+```
+
+Setup followed the pinned `apps/web/e2e/fixtures/test-base.ts`,
+`helpers/api-client.ts`, and `tests/plugins/plugin-test-helpers.ts` patterns.
+A disposable workspace, local fixture repository, and task were created through
+the isolated host API with `start_agent: true` and a mock-agent profile.
+Session `bbe56371-4f69-46fb-990b-53621a5a482e` actually launched a mock ACP agent;
+the task runtime instance reported its loopback MCP port as 41013. While that
+agent/backend stream was live, this exact command passed:
+
+```sh
+python3 scripts/check-notification-tool.py http://127.0.0.1:41013/mcp
+```
+
+Results: MCP initialize and tools/list succeeded; the Slack tool was discovered;
+tools/call reached the managed plugin and returned `invalid_arguments` for
+blank content; the host rejected channel recipients and forged workspace fields.
+A separate initialized JSON-RPC tools/call with valid recipient/message/key
+returned `bot_not_configured`, preserving the plugin's JSON error payload.
+No valid Slack token or external message was used.
+
+The v0.99.0 agentctl contract exempts its local `/mcp` route from HTTP bearer
+authentication; the managed backend supplies the verified task/session/workspace
+context. This evidence proves the actual started task's routing and context
+validation, not a new bearer-authentication guarantee. The endpoint was ephemeral;
+it is not a reusable running fixture or a full task-provisioning test harness.
+
+Process-regression follow-up: temporary paths are canonicalized; probe startup
+is awaited before inspecting /proc; deleted and replaced executable targets are
+counted via raw readlink targets. The real-process regression first failed for
+a deleted running executable, then passed after the correction. `make test` and
+the released-host smoke passed with the revised helper.
 
 ## Limits and external actions
 
-Released-host smoke does not revalidate browser rendering, task-agent MCP tool
-routing, SSH executors, real Slack scope grants, Socket Mode authentication,
+Automated released-host smoke does not start a task; the supplemental check
+above validates local task-agent MCP routing. Browser rendering, SSH executors,
+real Slack scope grants, Socket Mode authentication,
 triage creation, DM delivery, or external repeated-call suppression. The Go
 suite covers triage and notification outcomes with fake Host/HTTP fixtures;
 that is not live external-service evidence. Historical tests are retained,
