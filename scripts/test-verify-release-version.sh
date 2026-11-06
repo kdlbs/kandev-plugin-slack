@@ -56,6 +56,31 @@ package_file=$(cd "$test_dir/matching-package" && make --no-print-directory -s p
 tar -czf "$test_dir/matching-package/$package_file" -C "$test_dir/matching-package/archive" manifest.yaml
 (cd "$test_dir/matching-package" && sh "$verify_script" "v$base_version" "$package_file")
 
+make_fixture normalized-package
+mkdir -p "$test_dir/normalized-package/archive"
+sed 's/^version: "\([^"]*\)"$/version: \1/' "$test_dir/normalized-package/manifest.yaml" > "$test_dir/normalized-package/archive/manifest.yaml"
+package_file=$(cd "$test_dir/normalized-package" && make --no-print-directory -s package-file)
+tar -czf "$test_dir/normalized-package/$package_file" -C "$test_dir/normalized-package/archive" manifest.yaml
+(cd "$test_dir/normalized-package" && sh "$verify_script" "v$base_version" "$package_file")
+
+for quote in opening closing; do
+	make_fixture "dangling-$quote-version"
+	fixture=$test_dir/dangling-$quote-version
+	if [ "$quote" = opening ]; then
+		sed 's/^version: "\([^"]*\)"$/version: "\1/' "$fixture/manifest.yaml" > "$fixture/manifest.next"
+	else
+		sed 's/^version: "\([^"]*\)"$/version: \1"/' "$fixture/manifest.yaml" > "$fixture/manifest.next"
+	fi
+	cp "$fixture/manifest.next" "$fixture/manifest.yaml"
+	expect_failure "a dangling $quote source version quote" "$fixture" "v$base_version"
+	cp "$repo_dir/manifest.yaml" "$fixture/manifest.yaml"
+	mkdir -p "$fixture/archive"
+	mv "$fixture/manifest.next" "$fixture/archive/manifest.yaml"
+	package_file=$(cd "$fixture" && make --no-print-directory -s package-file)
+	tar -czf "$fixture/$package_file" -C "$fixture/archive" manifest.yaml
+	expect_failure "a dangling $quote archive version quote" "$fixture" "v$base_version" "$package_file"
+done
+
 make_fixture wrong-package-name
 mkdir -p "$test_dir/wrong-package-name/archive"
 cp "$test_dir/wrong-package-name/manifest.yaml" "$test_dir/wrong-package-name/archive/manifest.yaml"

@@ -14,7 +14,7 @@ This example is illustrative. No live Slack workspace participated in plugin val
 
 ## Requirements
 
-- Use Kandev `0.88.0` or later. Task notifications need its agent tool API.
+- Use Kandev `0.99.0` or later, the public SDK 0.1.0 host minimum.
 - Use a host that supports Linux amd64/arm64, macOS amd64/arm64, or Windows amd64 plugin binaries.
 - Use a Slack workspace that permits custom apps, or use the unofficial browser-session fallback.
 
@@ -94,7 +94,7 @@ If you fill both paths, the plugin always uses the Slack app. Clear the app toke
 
 ## Task notifications
 
-Agents can call `notify_user` to send one Slack direct message through the configured bot. The call requires Kandev `0.88.0` or later and the `chat:write` and `im:write` scopes. The notification feature stores outcome keys in Kandev state across restarts.
+Agents can call `notify_user` to send one Slack direct message through the configured bot. The call requires Kandev `0.99.0` or later and the `chat:write` and `im:write` scopes. The notification feature stores outcome keys in Kandev state across restarts.
 
 Read [Task notifications](docs/notifications.md) for the tool arguments, results, retry limits, and validation details.
 
@@ -122,30 +122,44 @@ The browser-session fallback uses a user session token and cookie. Treat both va
 
 Use Go `1.26.0`, Git, and Make. The UI bundle is checked into `ui/bundle.js`. This repository has no separate npm test, typecheck, or build command.
 
-The Go module uses `../kandev/apps/backend`. Create a sibling Kandev checkout at the fixed source pin:
+The Go SDK is pinned to public `github.com/kdlbs/kandev/pluginsdk v0.1.0`.
+Compilation and tests need no sibling checkout or local module replacement.
+The SDK's published release record requires Kandev **0.99.0** and supports API
+versions 1 and 2; this plugin retains API 1. SDK version 0.1.0 and plugin version
+0.3.0 are independent.
+
+Run the source checks from this repository root:
 
 ```sh
-git clone https://github.com/kdlbs/kandev.git ../kandev
-git -C ../kandev checkout --detach "$(cat .kandev-sdk-ref)"
-make check-sdk-pin
-```
-
-Run the local checks from this repository root:
-
-```sh
-make check-format
+go mod download
 go mod tidy
 git diff --exit-code -- go.mod go.sum
-make vet
-make test
-make build
-make verify-package-host
-make verify-package
+make sdk-check check-format vet test build
 ```
 
-`make test` runs the Go tests and negative tests for package and release verification. `make verify-package-host` builds and checks one host archive. `make verify-package` cross-compiles every declared platform and checks the complete package inventory and checksums.
+`make sdk-check` runs the public `kandev-sdk-check@v0.1.0` against the installed
+Go dependency and manifest. The UI uses the host API directly and consumes no
+npm SDK. Upgrade exact SDK pins deliberately, inspect the installed
+`sdk-release.json`, rerun checks, and smoke test on the declared SDK-wide minimum
+host before releasing.
 
-The CI workflows use `.kandev-sdk-ref` for SDK builds. They also test and package against Kandev `v0.88.0`, the existing runtime minimum. See [Repository baseline](docs/repository-baseline.md) for the source pin and CI details.
+Packaging still uses backend-owned `plugin-pack` from a separate checkout pinned
+by `.kandev-tooling-ref`. Supply its path explicitly:
+
+```sh
+git clone --filter=blob:none --sparse https://github.com/kdlbs/kandev.git /tmp/slack-packaging-tools
+git -C /tmp/slack-packaging-tools sparse-checkout set apps/backend pluginsdk
+git -C /tmp/slack-packaging-tools checkout --detach "$(cat .kandev-tooling-ref)"
+make verify-package-host KANDEV_TOOLING=/tmp/slack-packaging-tools
+make test-minimum-host KANDEV_TOOLING=/tmp/slack-packaging-tools KANDEV_HOST_BIN=/path/to/released/kandev/bin/kandev
+make verify-package KANDEV_TOOLING=/tmp/slack-packaging-tools
+```
+
+`make test` runs Go and package/release verifier tests. Package checks verify
+inventory and checksums. The minimum-host smoke runs the archive on an isolated
+released Kandev v0.99.0 runtime without Slack credentials. See
+[Repository baseline](docs/repository-baseline.md) for CI, packaging requirements,
+smoke coverage, and limits.
 
 To install a local package while testing, first uninstall the existing plugin with the same ID and version. Then upload the archive produced by `make package`:
 

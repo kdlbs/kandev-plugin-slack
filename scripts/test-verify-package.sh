@@ -91,6 +91,55 @@ done
 write_checksums "$host_fixture"
 sh "$verify_script" "$host_fixture" host "$host_platform" >/dev/null
 
+# Current plugin-pack normalizes YAML and narrows a host-only manifest.
+copy_fixture normalized-full
+sed 's/"//g; s/^    /        /; s/^  \([^ ]\)/    \1/' "$test_dir/normalized-full/manifest.yaml" > "$test_dir/normalized-full/manifest.next"
+mv "$test_dir/normalized-full/manifest.next" "$test_dir/normalized-full/manifest.yaml"
+write_checksums "$test_dir/normalized-full"
+sh "$verify_script" "$test_dir/normalized-full" full >/dev/null
+
+cp -R "$host_fixture" "$test_dir/normalized-host"
+awk -v platform="$host_platform:" '$1 !~ /^(linux|darwin|windows)-/ || $1 == platform' "$test_dir/normalized-full/manifest.yaml" > "$test_dir/normalized-host/manifest.yaml"
+write_checksums "$test_dir/normalized-host"
+sh "$verify_script" "$test_dir/normalized-host" host "$host_platform" >/dev/null
+
+copy_fixture commented-executables
+sed '/    linux-arm64:/i\
+    # supported Linux target' "$test_dir/commented-executables/manifest.yaml" > "$test_dir/commented-executables/manifest.next"
+mv "$test_dir/commented-executables/manifest.next" "$test_dir/commented-executables/manifest.yaml"
+write_checksums "$test_dir/commented-executables"
+sh "$verify_script" "$test_dir/commented-executables" full >/dev/null
+
+for quote in opening closing; do
+	copy_fixture "dangling-$quote-icon"
+	if [ "$quote" = opening ]; then
+		sed 's/^icon: "assets\/icon.svg"$/icon: "assets\/icon.svg/' "$test_dir/dangling-$quote-icon/manifest.yaml" > "$test_dir/dangling-$quote-icon/manifest.next"
+	else
+		sed 's/^icon: "assets\/icon.svg"$/icon: assets\/icon.svg"/' "$test_dir/dangling-$quote-icon/manifest.yaml" > "$test_dir/dangling-$quote-icon/manifest.next"
+	fi
+	mv "$test_dir/dangling-$quote-icon/manifest.next" "$test_dir/dangling-$quote-icon/manifest.yaml"
+	write_checksums "$test_dir/dangling-$quote-icon"
+	expect_failure "a dangling $quote icon quote" "$test_dir/dangling-$quote-icon"
+	copy_fixture "dangling-$quote-executable"
+	if [ "$quote" = opening ]; then
+		sed 's|linux-amd64: "server/plugin-linux-amd64"|linux-amd64: "server/plugin-linux-amd64|' "$test_dir/dangling-$quote-executable/manifest.yaml" > "$test_dir/dangling-$quote-executable/manifest.next"
+	else
+		sed 's|linux-amd64: "server/plugin-linux-amd64"|linux-amd64: server/plugin-linux-amd64"|' "$test_dir/dangling-$quote-executable/manifest.yaml" > "$test_dir/dangling-$quote-executable/manifest.next"
+	fi
+	mv "$test_dir/dangling-$quote-executable/manifest.next" "$test_dir/dangling-$quote-executable/manifest.yaml"
+	write_checksums "$test_dir/dangling-$quote-executable"
+	expect_failure "a dangling $quote executable quote" "$test_dir/dangling-$quote-executable"
+done
+
+copy_fixture malformed-host-tail
+cp "$test_dir/normalized-host/manifest.yaml" "$test_dir/malformed-host-tail/manifest.yaml"
+printf '        malformed extra words here\n' >> "$test_dir/malformed-host-tail/manifest.yaml"
+for executable in "$test_dir/malformed-host-tail"/server/*; do
+	[ "$executable" = "$test_dir/malformed-host-tail/$host_executable" ] || rm "$executable"
+done
+write_checksums "$test_dir/malformed-host-tail"
+expect_failure 'a malformed declaration after the host executable' "$test_dir/malformed-host-tail" host "$host_platform"
+
 for required in \
 	manifest.yaml assets/icon.svg assets/NOTICE.md README.md \
 	docs/notifications.md docs/notification-validation.md \

@@ -14,7 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 const notificationTool = "notify_user"
@@ -150,8 +150,8 @@ func notificationResult(recipient, status, code, detail, channel, ts string, dup
 	return notificationToolResult(result)
 }
 
-// Kandev 0.88.0 (and current hosts) drops structuredContent on error results.
-// JSON fallback text preserves every field without disguising IsError.
+// JSON fallback text preserves every field on hosts that drop structuredContent
+// for error results, without disguising IsError.
 func notificationToolResult(result map[string]any) *pluginsdk.AgentToolResult {
 	text, _ := json.Marshal(result)
 	return &pluginsdk.AgentToolResult{Text: string(text), StructuredContent: result, IsError: stringField(result, "status") != "delivered"}

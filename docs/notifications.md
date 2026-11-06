@@ -6,13 +6,15 @@ Some clients add a server prefix to this name.
 
 ## Compatibility and setup
 
-The minimum runtime host version is **Kandev 0.88.0**.
-That release includes `agent_tools`, `AgentToolPlugin`, and verified task/session/workspace context.
-The SDK remains part of the Kandev monorepo. CI and package builds use the fixed source pin in [`.kandev-sdk-ref`](../.kandev-sdk-ref).
-CI also builds and packages against the `v0.88.0` tag to retain the minimum-host compatibility check.
+New packages require **Kandev 0.99.0**, the SDK-wide floor recorded by the
+public `github.com/kdlbs/kandev/pluginsdk v0.1.0` release. The notification API
+originated in Kandev 0.88.0; that feature history does not lower the current SDK
+minimum. Existing installed binaries keep their original manifest compatibility.
+CI smoke tests the package on the released v0.99.0 runtime. Packaging tooling is
+separately pinned in [`.kandev-tooling-ref`](../.kandev-tooling-ref).
 The notification tool uses the existing `state` capability for idempotency. It adds no separate notification permission.
 
-1. Use Kandev 0.88.0 or later on the host and its matching agentctl on executors.
+1. Use Kandev 0.99.0 or later on the host and its matching agentctl on executors.
 2. Add the `im:write` bot scope from the updated Slack app manifest.
 3. Reinstall the Slack app into its workspace to grant the new scope.
 4. Keep the existing `chat:write` scope and vault-backed `xoxb-` bot token.
@@ -75,9 +77,10 @@ A confirmed delivery also includes `channel` and `message_ts`.
 A rate-limit result includes `retry_after_seconds` when Slack supplies a valid delay.
 Only `delivered` returns `IsError: false`.
 
-Host limitation: Kandev 0.88.0 and the tested current host omit native `structuredContent` for error results.
-The plugin also returns the complete result as JSON text, so callers retain all fields.
-Preserving native structured error results requires a separate Kandev host change.
+Hosts that omit native `structuredContent` for error results still receive the
+complete result as JSON text, so callers retain all fields. The plugin always
+returns this fallback and does not depend on native structured error support.
+The dated validation evidence records which hosts exhibited the limitation.
 A delivered result means Slack accepted the message. It does not mean the person read it.
 
 | Status | Meaning | Action |
@@ -119,15 +122,17 @@ The plugin never sleeps through a rate limit and never automatically retries a S
 
 ## Validation
 
-Run these commands with a sibling Kandev checkout at the source pin in `.kandev-sdk-ref`:
+Run source checks standalone; supply the separate packaging checkout only for archives:
 
 ```bash
 make test vet
 go test -race ./server
-make package verify-package
+make verify-package KANDEV_TOOLING=/path/to/pinned/kandev
 ```
 
-The CI minimum-host job separately runs the backend tests and host package checks against Kandev `v0.88.0`.
+The CI minimum-host job installs a host-only archive into released Kandev `v0.99.0`
+and checks subprocess startup, webhooks, config restart, and disable/re-enable.
+It does not start a task agent or prove notification MCP routing.
 
 Notification tests use a local Slack stub and disk-backed Host state.
 They cover concurrent calls, process-state reconstruction, payload conflicts, workspace/recipient isolation, permissions, redaction, and uncertain outcomes.
